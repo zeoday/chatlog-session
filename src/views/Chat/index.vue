@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/app'
 import { useSessionStore } from '@/stores/session'
 import SessionList from '@/components/chat/SessionList.vue'
 import MessageList from '@/components/chat/MessageList.vue'
+import ChatHeader from '@/components/chat/ChatHeader.vue'
 import type { Session } from '@/types'
 
 const appStore = useAppStore()
@@ -111,7 +112,7 @@ onMounted(() => {
         <div class="session-header">
           <div class="session-header__title">
             <h2>聊天</h2>
-            <el-tag size="small" v-if="sessionStore.totalUnreadCount > 0">
+            <el-tag v-if="sessionStore.totalUnreadCount > 0" size="small">
               {{ sessionStore.totalUnreadCount }}
             </el-tag>
           </div>
@@ -181,56 +182,15 @@ onMounted(() => {
         <!-- 已选中会话时显示消息 -->
         <template v-else>
           <!-- 消息头部 -->
-          <div class="message-header">
-            <div class="message-header__left">
-              <!-- 移动端返回按钮 -->
-              <el-button
-                v-if="appStore.isMobile"
-                text
-                @click="toggleSidebar"
-                class="mobile-back"
-              >
-                <el-icon><ArrowLeft /></el-icon>
-              </el-button>
-
-              <div class="header-info">
-                <h3>{{ currentSession.name }}</h3>
-                <span class="text-secondary">
-                  {{ currentSession.type === 'group' ? '群聊' : '私聊' }}
-                  <template v-if="currentSession.type === 'group'">
-                    (群聊)
-                  </template>
-                </span>
-              </div>
-            </div>
-
-            <div class="message-header__right">
-              <el-button text @click="handleRefresh">
-                <el-icon><Refresh /></el-icon>
-              </el-button>
-              <el-dropdown trigger="click">
-                <el-button text>
-                  <el-icon><MoreFilled /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item>
-                      <el-icon><Search /></el-icon>
-                      搜索消息
-                    </el-dropdown-item>
-                    <el-dropdown-item>
-                      <el-icon><Download /></el-icon>
-                      导出聊天记录
-                    </el-dropdown-item>
-                    <el-dropdown-item divided>
-                      <el-icon><InfoFilled /></el-icon>
-                      会话详情
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </div>
+          <ChatHeader
+            :session="currentSession"
+            :show-back="appStore.isMobile"
+            @back="toggleSidebar"
+            @refresh="handleRefresh"
+            @search="() => {}"
+            @export="() => {}"
+            @info="() => {}"
+          />
 
           <!-- 消息列表 -->
           <MessageList
@@ -405,51 +365,6 @@ onMounted(() => {
     }
   }
 
-  .message-header {
-    height: 60px;
-    padding: 0 24px;
-    border-bottom: 1px solid var(--el-border-color-light);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    background-color: var(--el-bg-color);
-
-    &__left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex: 1;
-      min-width: 0;
-
-      .mobile-back {
-        display: none;
-      }
-    }
-
-    &__right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .header-info {
-      min-width: 0;
-
-      h3 {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      span {
-        font-size: 12px;
-      }
-    }
-  }
 }
 
 // 响应式设计
@@ -474,12 +389,6 @@ onMounted(() => {
     right: 0;
     bottom: 0;
     z-index: 10;
-
-    .message-header__left {
-      .mobile-back {
-        display: flex !important;
-      }
-    }
   }
 
   // 未选中会话时隐藏消息面板

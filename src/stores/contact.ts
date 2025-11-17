@@ -5,7 +5,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { contactAPI } from '@/api'
 import type { Contact } from '@/types/contact'
-import type { ContactParams } from '@/types/api'
 import { useAppStore } from './app'
 
 export const useContactStore = defineStore('contact', () => {
@@ -194,20 +193,20 @@ export const useContactStore = defineStore('contact', () => {
   /**
    * 加载联系人列表
    */
-  async function loadContacts(params?: ContactParams) {
+  async function loadContacts(keyword?: string) {
     try {
       loading.value = true
       error.value = null
       appStore.setLoading('contacts', true)
 
-      const result = await contactAPI.getContacts(params)
+      const result = await contactAPI.getContacts(keyword ? { keyword } : undefined)
       contacts.value = result
       totalContacts.value = result.length
 
       if (appStore.isDebug) {
         console.log('👥 Contacts loaded', {
           count: result.length,
-          type: params?.type || 'all',
+          keyword: keyword || 'all',
         })
       }
 
@@ -233,21 +232,27 @@ export const useContactStore = defineStore('contact', () => {
    * 加载好友列表
    */
   async function loadFriends() {
-    return loadContacts({ type: 'friend' })
+    await loadContacts()
+    // 返回前端过滤后的好友列表
+    return friends.value
   }
 
   /**
    * 加载群聊列表
    */
   async function loadChatrooms() {
-    return loadContacts({ type: 'chatroom' })
+    await loadContacts()
+    // 返回前端过滤后的群聊列表
+    return chatrooms.value
   }
 
   /**
    * 加载公众号列表
    */
   async function loadOfficialAccounts() {
-    return loadContacts({ type: 'official' })
+    await loadContacts()
+    // 返回前端过滤后的公众号列表
+    return officialAccounts.value
   }
 
   /**
@@ -256,7 +261,7 @@ export const useContactStore = defineStore('contact', () => {
   async function getContactDetail(wxid: string) {
     try {
       const contact = await contactAPI.getContactDetail(wxid)
-      
+
       // 更新或添加到列表
       const index = contacts.value.findIndex(c => c.wxid === wxid)
       if (index !== -1) {
@@ -277,7 +282,7 @@ export const useContactStore = defineStore('contact', () => {
    */
   async function selectContact(wxid: string) {
     currentContactId.value = wxid
-    
+
     // 如果联系人不在列表中，获取详情
     if (!contacts.value.find(c => c.wxid === wxid)) {
       await getContactDetail(wxid)
@@ -315,10 +320,10 @@ export const useContactStore = defineStore('contact', () => {
   /**
    * 搜索联系人
    */
-  async function searchContacts(keyword: string, type?: string) {
+  async function searchContacts(keyword: string) {
     try {
       loading.value = true
-      const result = await contactAPI.searchContacts(keyword, type)
+      const result = await contactAPI.searchContacts(keyword)
       return result
     } catch (err) {
       error.value = err as Error
@@ -424,7 +429,7 @@ export const useContactStore = defineStore('contact', () => {
     try {
       loading.value = true
       const result = await contactAPI.getBatchContactDetails(wxids)
-      
+
       // 合并到列表
       result.forEach(contact => {
         const index = contacts.value.findIndex(c => c.wxid === contact.wxid)
@@ -449,14 +454,14 @@ export const useContactStore = defineStore('contact', () => {
    */
   function getFirstLetter(name: string): string {
     if (!name) return '#'
-    
+
     const firstChar = name.charAt(0).toUpperCase()
-    
+
     // 如果是英文字母
     if (/[A-Z]/.test(firstChar)) {
       return firstChar
     }
-    
+
     // 中文转拼音首字母（简单实现，实际可能需要拼音库）
     const code = firstChar.charCodeAt(0)
     if (code >= 0x4e00 && code <= 0x9fa5) {
@@ -464,7 +469,7 @@ export const useContactStore = defineStore('contact', () => {
       // 实际应该使用拼音库如 pinyin-pro
       return getPinyinFirstLetter(firstChar)
     }
-    
+
     // 其他字符归类到 #
     return '#'
   }
@@ -476,14 +481,14 @@ export const useContactStore = defineStore('contact', () => {
     // 这是一个简化的实现，实际项目中应该使用专业的拼音库
     // 这里只做示例，返回基于 Unicode 的粗略映射
     const code = char.charCodeAt(0)
-    
+
     if (code >= 0x4e00 && code <= 0x9fa5) {
       // 简单的 Unicode 范围映射
       const offset = code - 0x4e00
       const letterIndex = Math.floor(offset / ((0x9fa5 - 0x4e00) / 26))
       return String.fromCharCode(65 + Math.min(letterIndex, 25))
     }
-    
+
     return '#'
   }
 
