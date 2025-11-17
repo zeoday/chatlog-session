@@ -162,7 +162,7 @@ export const useChatStore = defineStore('chat', () => {
       const offset = (page - 1) * pageSize.value
       const limit = pageSize.value
 
-      const result = await chatlogAPI.getSessionMessages(talker, limit, offset)
+      const result = await chatlogAPI.getSessionMessages(talker, undefined, limit, offset)
 
       if (append) {
         messages.value = [...messages.value, ...result]

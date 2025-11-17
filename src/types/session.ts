@@ -4,6 +4,7 @@ import type { ChatroomMember } from './contact'
  * 会话接口
  */
 export interface Session {
+  id: string
   talker: string
   talkerName: string
   name?: string

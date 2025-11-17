@@ -8,6 +8,33 @@ import type { Message } from '@/types/message'
 import type { ChatlogParams, SearchParams, PaginatedResponse } from '@/types/api'
 
 /**
+ * 格式化日期为 YYYY-MM-DD
+ */
+function formatDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * 获取今天的日期字符串
+ */
+function getToday(): string {
+  return formatDate(new Date())
+}
+
+/**
+ * 获取日期范围字符串
+ * @param startDate 开始日期
+ * @param endDate 结束日期
+ * @returns 格式：YYYY-MM-DD~YYYY-MM-DD
+ */
+function getDateRange(startDate: Date, endDate: Date): string {
+  return `${formatDate(startDate)}~${formatDate(endDate)}`
+}
+
+/**
  * 聊天记录 API 类
  */
 class ChatlogAPI {
@@ -18,7 +45,7 @@ class ChatlogAPI {
    * @param params 查询参数
    * @returns 消息列表
    */
-  getChatlog(params?: ChatlogParams): Promise<Message[]> {
+  getChatlog(params: ChatlogParams): Promise<Message[]> {
     return request.get<Message[]>('/api/v1/chatlog', params)
   }
 
@@ -40,7 +67,7 @@ class ChatlogAPI {
    * @param params 查询参数
    * @returns JSON 格式的聊天记录
    */
-  exportJSON(params?: ChatlogParams): Promise<Message[]> {
+  exportJSON(params: ChatlogParams): Promise<Message[]> {
     return request.get<Message[]>('/api/v1/chatlog', {
       ...params,
       format: 'json',
@@ -54,7 +81,7 @@ class ChatlogAPI {
    * @param params 查询参数
    * @param filename 保存的文件名
    */
-  exportCSV(params?: ChatlogParams, filename = 'chatlog.csv'): Promise<void> {
+  exportCSV(params: ChatlogParams, filename = 'chatlog.csv'): Promise<void> {
     const queryParams = new URLSearchParams({
       ...params,
       format: 'csv',
@@ -69,7 +96,7 @@ class ChatlogAPI {
    * @param params 查询参数
    * @param filename 保存的文件名
    */
-  exportText(params?: ChatlogParams, filename = 'chatlog.txt'): Promise<void> {
+  exportText(params: ChatlogParams, filename = 'chatlog.txt'): Promise<void> {
     const queryParams = new URLSearchParams({
       ...params,
       format: 'text',
@@ -81,13 +108,15 @@ class ChatlogAPI {
    * 获取指定会话的消息
    * 
    * @param talker 会话 ID（talker）
+   * @param time 时间参数，格式：YYYY-MM-DD 或 YYYY-MM-DD~YYYY-MM-DD，默认今天
    * @param limit 返回数量
    * @param offset 偏移量
    * @returns 消息列表
    */
-  getSessionMessages(talker: string, limit = 50, offset = 0): Promise<Message[]> {
+  getSessionMessages(talker: string, time?: string, limit = 50, offset = 0): Promise<Message[]> {
     return this.getChatlog({
       talker,
+      time: time || getToday(),
       limit,
       offset,
     })
@@ -96,7 +125,7 @@ class ChatlogAPI {
   /**
    * 获取指定时间段的消息
    * 
-   * @param time 时间戳或时间范围（格式：timestamp 或 start-end）
+   * @param time 时间参数，格式：YYYY-MM-DD 或 YYYY-MM-DD~YYYY-MM-DD
    * @param talker 会话 ID（可选）
    * @param limit 返回数量
    * @returns 消息列表
@@ -113,13 +142,67 @@ class ChatlogAPI {
    * 获取指定发送者的消息
    * 
    * @param sender 发送者 ID
+   * @param time 时间参数，格式：YYYY-MM-DD 或 YYYY-MM-DD~YYYY-MM-DD，默认今天
    * @param talker 会话 ID（可选）
    * @param limit 返回数量
    * @returns 消息列表
    */
-  getMessagesBySender(sender: string, talker?: string, limit = 50): Promise<Message[]> {
+  getMessagesBySender(sender: string, time?: string, talker?: string, limit = 50): Promise<Message[]> {
     return this.getChatlog({
       sender,
+      time: time || getToday(),
+      talker,
+      limit,
+    })
+  }
+
+  /**
+   * 获取今天的聊天记录
+   * 
+   * @param talker 会话 ID（可选）
+   * @param limit 返回数量
+   * @returns 消息列表
+   */
+  getTodayMessages(talker?: string, limit = 50): Promise<Message[]> {
+    return this.getChatlog({
+      time: getToday(),
+      talker,
+      limit,
+    })
+  }
+
+  /**
+   * 获取最近N天的聊天记录
+   * 
+   * @param days 天数
+   * @param talker 会话 ID（可选）
+   * @param limit 返回数量
+   * @returns 消息列表
+   */
+  getRecentMessages(days: number, talker?: string, limit = 50): Promise<Message[]> {
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+    
+    return this.getChatlog({
+      time: getDateRange(startDate, endDate),
+      talker,
+      limit,
+    })
+  }
+
+  /**
+   * 获取指定日期范围的聊天记录
+   * 
+   * @param startDate 开始日期
+   * @param endDate 结束日期
+   * @param talker 会话 ID（可选）
+   * @param limit 返回数量
+   * @returns 消息列表
+   */
+  getMessagesByDateRange(startDate: Date, endDate: Date, talker?: string, limit = 50): Promise<Message[]> {
+    return this.getChatlog({
+      time: getDateRange(startDate, endDate),
       talker,
       limit,
     })

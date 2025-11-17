@@ -28,6 +28,12 @@ const service: AxiosInstance = axios.create(config)
  */
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // 统一添加 format=json 参数（Chatlog API 支持）
+    config.params = {
+      ...config.params,
+      format: 'json',
+    }
+
     // 添加时间戳防止缓存
     if (config.method?.toLowerCase() === 'get') {
       config.params = {
@@ -68,20 +74,36 @@ service.interceptors.response.use(
     }
 
     // 处理 Chatlog API 的响应格式
-    // Chatlog API 可能直接返回数据数组，需要做兼容处理
+    // 优先级从高到低处理各种响应格式
+    
+    // 1. 如果是数组，直接返回（某些旧接口）
     if (Array.isArray(data)) {
       return data as any
     }
 
-    // 标准响应格式
-    if (data.code === 0) {
-      return data.data
+    // 2. 如果不是对象，直接返回（字符串、数字等）
+    if (!data || typeof data !== 'object') {
+      return data as any
     }
 
-    // 业务错误处理
-    const errorMessage = data.message || '请求失败'
-    ElMessage.error(errorMessage)
-    return Promise.reject(new Error(errorMessage))
+    // 3. Chatlog API 标准格式：{ items: [...] }
+    if ('items' in data) {
+      return data as any
+    }
+
+    // 4. 标准 REST API 格式：{ code: 0, data: ..., message: ... }
+    if ('code' in data) {
+      if (data.code === 0) {
+        return data.data
+      }
+      // 业务错误
+      const errorMessage = data.message || '请求失败'
+      ElMessage.error(errorMessage)
+      return Promise.reject(new Error(errorMessage))
+    }
+
+    // 5. 其他格式，直接返回原始数据
+    return data as any
   },
   (error: AxiosError<ApiError>) => {
     console.error('❌ Response Error:', error)

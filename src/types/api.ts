@@ -20,10 +20,11 @@ export interface PaginatedResponse<T> {
 
 /**
  * 聊天记录查询参数
+ * @property time 必填，格式：YYYY-MM-DD 或 YYYY-MM-DD~YYYY-MM-DD
  */
 export interface ChatlogParams {
   talker?: string
-  time?: string
+  time: string  // 必填：YYYY-MM-DD 或 YYYY-MM-DD~YYYY-MM-DD
   sender?: string
   limit?: number
   offset?: number

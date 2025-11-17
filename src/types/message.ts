@@ -22,9 +22,11 @@ export interface Message {
   createTime: number
   talker: string
   talkerName: string
+  talkerAvatar?: string
   sender: string
   senderName: string
   isSelf: boolean
+  isSend: number
   isChatRoom: boolean
   type: MessageType
   subType: number

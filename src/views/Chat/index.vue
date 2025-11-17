@@ -1,15 +1,57 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '@/stores/app'
+import { useSessionStore } from '@/stores/session'
+import SessionList from '@/components/chat/SessionList.vue'
+import MessageList from '@/components/chat/MessageList.vue'
+import type { Session } from '@/types'
 
 const appStore = useAppStore()
-const loading = ref(true)
+const sessionStore = useSessionStore()
+
+// 引用
+const sessionListRef = ref()
+const messageListRef = ref()
+
+// 搜索文本
 const searchText = ref('')
 
+// 筛选类型
+const filterType = ref<'all' | 'private' | 'group'>('all')
+
+// 当前选中的会话
+const currentSession = computed(() => {
+  const id = sessionStore.currentSessionId
+  if (!id) return null
+  return sessionStore.sessions.find((s: Session) => s.id === id) || null
+})
+
+// 处理会话选择
+const handleSessionSelect = (session: Session) => {
+  console.log('选中会话:', session)
+  // MessageList 会自动监听 sessionId 变化并加载消息
+}
+
+// 处理搜索
+const handleSearch = (value: string) => {
+  searchText.value = value
+}
+
+
+
+// 刷新数据
+const handleRefresh = () => {
+  sessionListRef.value?.refresh()
+  messageListRef.value?.refresh()
+}
+
+// 切换侧边栏（移动端）
+const toggleSidebar = () => {
+  appStore.toggleSidebar()
+}
+
 onMounted(() => {
-  setTimeout(() => {
-    loading.value = false
-  }, 500)
+  // 初始化
 })
 </script>
 
@@ -32,27 +74,27 @@ onMounted(() => {
             </div>
           </el-tooltip>
           <el-tooltip content="联系人" placement="right">
-            <div class="nav-item">
+            <router-link to="/contact" class="nav-item">
               <el-icon size="24">
                 <User />
               </el-icon>
-            </div>
+            </router-link>
           </el-tooltip>
           <el-tooltip content="搜索" placement="right">
-            <div class="nav-item">
+            <router-link to="/search" class="nav-item">
               <el-icon size="24">
                 <Search />
               </el-icon>
-            </div>
+            </router-link>
           </el-tooltip>
         </div>
         <div class="sidebar-footer">
           <el-tooltip content="设置" placement="right">
-            <div class="nav-item">
+            <router-link to="/settings" class="nav-item">
               <el-icon size="24">
                 <Setting />
               </el-icon>
-            </div>
+            </router-link>
           </el-tooltip>
           <el-tooltip :content="appStore.isDark ? '切换到亮色' : '切换到暗色'" placement="right">
             <div class="nav-item" @click="appStore.toggleTheme">
@@ -64,55 +106,141 @@ onMounted(() => {
         </div>
       </aside>
 
-      <!-- 会话列表 -->
-      <div class="session-list">
+      <!-- 会话列表区域 -->
+      <div class="session-panel" :class="{ 'mobile-show': appStore.isMobile && appStore.sidebarCollapsed }">
         <div class="session-header">
-          <h2>聊天</h2>
+          <div class="session-header__title">
+            <h2>聊天</h2>
+            <el-tag size="small" v-if="sessionStore.totalUnreadCount > 0">
+              {{ sessionStore.totalUnreadCount }}
+            </el-tag>
+          </div>
+          
+          <!-- 搜索框 -->
           <el-input
             v-model="searchText"
-            placeholder="搜索"
+            placeholder="搜索会话"
             prefix-icon="Search"
             clearable
             size="small"
+            class="session-search"
+            @input="handleSearch"
           />
-        </div>
-        <div v-if="loading" class="session-loading">
-          <el-skeleton :rows="5" animated />
-        </div>
-        <div v-else class="session-content">
-          <el-empty description="暂无会话" />
-          <div class="session-tip">
-            <p>请确保 Chatlog API 服务正在运行</p>
-            <p class="text-secondary">默认地址: http://127.0.0.1:5030</p>
+
+          <!-- 筛选按钮 -->
+          <div class="session-filter">
+            <el-radio-group v-model="filterType" size="small">
+              <el-radio-button label="all">全部</el-radio-button>
+              <el-radio-button label="private">私聊</el-radio-button>
+              <el-radio-button label="group">群聊</el-radio-button>
+            </el-radio-group>
           </div>
         </div>
+
+        <!-- 会话列表 -->
+        <SessionList
+          ref="sessionListRef"
+          :search-text="searchText"
+          :filter-type="filterType"
+          @select="handleSessionSelect"
+        />
       </div>
 
       <!-- 消息区域 -->
-      <div class="message-area">
-        <div class="message-header">
-          <div class="header-info">
-            <h3>Chatlog Session</h3>
-            <span class="text-secondary">欢迎使用</span>
-          </div>
-        </div>
-        <div class="message-content flex-center">
-          <el-result icon="success" title="开发中" sub-title="Chatlog Session v1.0 正在开发中">
+      <div class="message-panel">
+        <!-- 未选中会话时的欢迎页 -->
+        <div v-if="!currentSession" class="message-welcome">
+          <el-result
+            icon="success"
+            title="Chatlog Session"
+            sub-title="微信聊天记录查看器"
+          >
+            <template #icon>
+              <el-icon size="80" color="var(--el-color-primary)">
+                <ChatLineSquare />
+              </el-icon>
+            </template>
             <template #extra>
-              <el-space direction="vertical" alignment="center">
-                <el-tag type="success">✅ 项目初始化完成</el-tag>
-                <el-tag type="warning">🚧 核心功能开发中</el-tag>
-                <el-tag type="info">📅 预计发布: 2026-01-15</el-tag>
+              <el-space direction="vertical" alignment="center" :size="16">
+                <div class="welcome-features">
+                  <el-tag type="success" effect="plain">✅ 浏览聊天记录</el-tag>
+                  <el-tag type="info" effect="plain">🔍 搜索消息内容</el-tag>
+                  <el-tag type="warning" effect="plain">📁 导出聊天数据</el-tag>
+                  <el-tag effect="plain">🎨 深色模式支持</el-tag>
+                </div>
+                <div class="welcome-tip">
+                  <p>👈 从左侧选择一个会话开始浏览</p>
+                </div>
               </el-space>
             </template>
           </el-result>
         </div>
+
+        <!-- 已选中会话时显示消息 -->
+        <template v-else>
+          <!-- 消息头部 -->
+          <div class="message-header">
+            <div class="message-header__left">
+              <!-- 移动端返回按钮 -->
+              <el-button
+                v-if="appStore.isMobile"
+                text
+                @click="toggleSidebar"
+                class="mobile-back"
+              >
+                <el-icon><ArrowLeft /></el-icon>
+              </el-button>
+
+              <div class="header-info">
+                <h3>{{ currentSession.name }}</h3>
+                <span class="text-secondary">
+                  {{ currentSession.type === 'group' ? '群聊' : '私聊' }}
+                  <template v-if="currentSession.type === 'group'">
+                    (群聊)
+                  </template>
+                </span>
+              </div>
+            </div>
+
+            <div class="message-header__right">
+              <el-button text @click="handleRefresh">
+                <el-icon><Refresh /></el-icon>
+              </el-button>
+              <el-dropdown trigger="click">
+                <el-button text>
+                  <el-icon><MoreFilled /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item>
+                      <el-icon><Search /></el-icon>
+                      搜索消息
+                    </el-dropdown-item>
+                    <el-dropdown-item>
+                      <el-icon><Download /></el-icon>
+                      导出聊天记录
+                    </el-dropdown-item>
+                    <el-dropdown-item divided>
+                      <el-icon><InfoFilled /></el-icon>
+                      会话详情
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </div>
+
+          <!-- 消息列表 -->
+          <MessageList
+            ref="messageListRef"
+            :session-id="currentSession.id"
+            :show-date="true"
+          />
+        </template>
       </div>
     </div>
   </div>
 </template>
-
-
 
 <style lang="scss" scoped>
 .chat-page {
@@ -136,6 +264,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex-shrink: 0;
 
   .sidebar-header {
     width: 100%;
@@ -168,6 +297,8 @@ onMounted(() => {
     cursor: pointer;
     transition: all 0.3s;
     position: relative;
+    text-decoration: none;
+    color: var(--el-text-color-primary);
 
     &:hover {
       background-color: var(--el-fill-color-light);
@@ -191,51 +322,86 @@ onMounted(() => {
   }
 }
 
-// 会话列表
-.session-list {
-  width: 280px;
+// 会话面板
+.session-panel {
+  width: 320px;
   height: 100%;
   background-color: var(--el-bg-color);
   border-right: 1px solid var(--el-border-color-light);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 
   .session-header {
     padding: 16px;
     border-bottom: 1px solid var(--el-border-color-lighter);
+    flex-shrink: 0;
 
-    h2 {
-      font-size: 20px;
-      font-weight: 600;
+    &__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      h2 {
+        font-size: 20px;
+        font-weight: 600;
+      }
+    }
+
+    .session-search {
       margin-bottom: 12px;
     }
-  }
 
-  .session-loading,
-  .session-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-  }
+    .session-filter {
+      :deep(.el-radio-group) {
+        width: 100%;
 
-  .session-tip {
-    margin-top: 20px;
-    text-align: center;
+        .el-radio-button {
+          flex: 1;
 
-    p {
-      margin: 8px 0;
-      font-size: 13px;
+          .el-radio-button__inner {
+            width: 100%;
+          }
+        }
+      }
     }
   }
 }
 
-// 消息区域
-.message-area {
+// 消息面板
+.message-panel {
   flex: 1;
   height: 100%;
   display: flex;
   flex-direction: column;
   background-color: var(--el-bg-color);
+  min-width: 0;
+
+  .message-welcome {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+
+    .welcome-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .welcome-tip {
+      margin-top: 16px;
+      text-align: center;
+
+      p {
+        font-size: 14px;
+        color: var(--el-text-color-regular);
+      }
+    }
+  }
 
   .message-header {
     height: 60px;
@@ -244,12 +410,37 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-shrink: 0;
+    background-color: var(--el-bg-color);
+
+    &__left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+
+      .mobile-back {
+        display: none;
+      }
+    }
+
+    &__right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
     .header-info {
+      min-width: 0;
+
       h3 {
         font-size: 16px;
         font-weight: 600;
         margin-bottom: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       span {
@@ -257,26 +448,46 @@ onMounted(() => {
       }
     }
   }
-
-  .message-content {
-    flex: 1;
-    overflow-y: auto;
-  }
 }
 
-// 响应式
+// 响应式设计
 @media (max-width: 768px) {
   .sidebar {
     display: none;
   }
 
-  .session-list {
+  .session-panel {
     width: 100%;
     border-right: none;
+
+    &.mobile-show {
+      display: flex;
+    }
   }
 
-  .message-area {
+  .message-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+
+    .message-header__left {
+      .mobile-back {
+        display: flex !important;
+      }
+    }
+  }
+
+  // 未选中会话时隐藏消息面板
+  .message-welcome {
     display: none;
   }
+}
+
+// 工具类
+.text-secondary {
+  color: var(--el-text-color-secondary);
 }
 </style>
