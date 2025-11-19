@@ -8,15 +8,48 @@ import { ElMessage } from 'element-plus'
 import type { ApiResponse, ApiError } from '@/types/api'
 
 /**
+ * 扩展 axios 配置类型，支持重试
+ */
+declare module 'axios' {
+  export interface InternalAxiosRequestConfig {
+    metadata?: {
+      startTime?: number
+      retryCount?: number
+    }
+  }
+}
+
+/**
+ * 从 localStorage 读取设置
+ */
+const getSettings = () => {
+  try {
+    const settings = localStorage.getItem('chatlog-settings')
+    return settings ? JSON.parse(settings) : {}
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * 获取动态配置
+ */
+const getDynamicConfig = (): AxiosRequestConfig => {
+  const settings = getSettings()
+  
+  return {
+    baseURL: settings.apiBaseUrl || import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5030',
+    timeout: settings.apiTimeout || Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  }
+}
+
+/**
  * 请求配置
  */
-const config: AxiosRequestConfig = {
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5030',
-  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-}
+const config: AxiosRequestConfig = getDynamicConfig()
 
 /**
  * 创建 axios 实例
@@ -28,6 +61,26 @@ const service: AxiosInstance = axios.create(config)
  */
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // 初始化元数据
+    if (!config.metadata) {
+      config.metadata = {}
+    }
+    config.metadata.startTime = Date.now()
+    
+    // 初始化重试计数
+    if (config.metadata.retryCount === undefined) {
+      config.metadata.retryCount = 0
+    }
+    
+    // 动态更新 baseURL 和 timeout
+    const settings = getSettings()
+    if (settings.apiBaseUrl) {
+      config.baseURL = settings.apiBaseUrl
+    }
+    if (settings.apiTimeout) {
+      config.timeout = settings.apiTimeout
+    }
+    
     // 添加默认分页参数（如果没有提供）
     if (config.method?.toLowerCase() === 'get') {
       const userParams = config.params || {}
@@ -54,9 +107,15 @@ service.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    // 开发环境日志
-    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEBUG === 'true') {
-      console.log('📤 Request:', config.method?.toUpperCase(), config.url, config.params || config.data)
+    // 开发环境日志或用户开启了 API 调试
+    const enableDebug = import.meta.env.VITE_ENABLE_DEBUG === 'true' || settings.enableApiDebug
+    if (import.meta.env.DEV && enableDebug) {
+      console.log('📤 API Request:', config.method?.toUpperCase(), (config.baseURL || '') + (config.url || ''))
+      console.log('📤 Request Params:', config.params || config.data)
+      console.log('📤 Request Config:', {
+        timeout: config.timeout,
+        baseURL: config.baseURL
+      })
     }
     
     // 调试：打印最终参数（临时）
@@ -79,9 +138,15 @@ service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const { data } = response
 
-    // 开发环境日志
-    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEBUG === 'true') {
-      console.log('📥 Response:', response.config.url, data)
+    // 开发环境日志或用户开启了 API 调试
+    const settings = getSettings()
+    const enableDebug = import.meta.env.VITE_ENABLE_DEBUG === 'true' || settings.enableApiDebug
+    if (import.meta.env.DEV && enableDebug) {
+      const duration = response.config.metadata?.startTime 
+        ? Date.now() - response.config.metadata.startTime 
+        : 0
+      console.log('📥 API Response:', response.config.url, `(${duration}ms)`)
+      console.log('📥 Response Data:', data)
     }
 
     // 处理 Chatlog API 的响应格式
@@ -116,8 +181,52 @@ service.interceptors.response.use(
     // 5. 其他格式，直接返回原始数据
     return data as any
   },
-  (error: AxiosError<ApiError>) => {
-    console.error('❌ Response Error:', error)
+  async (error: AxiosError<ApiError>) => {
+    const settings = getSettings()
+    const enableDebug = import.meta.env.VITE_ENABLE_DEBUG === 'true' || settings.enableApiDebug
+    const config = error.config as InternalAxiosRequestConfig
+    
+    // 获取重试配置
+    const retryCount = settings.apiRetryCount ?? 3
+    const retryDelay = settings.apiRetryDelay ?? 1000
+    
+    // 判断是否应该重试
+    const shouldRetry = config && 
+                       config.metadata &&
+                       config.metadata.retryCount !== undefined &&
+                       config.metadata.retryCount < retryCount &&
+                       (!error.response || error.response.status >= 500 || error.code === 'ECONNABORTED')
+    
+    if (shouldRetry && config.metadata) {
+      config.metadata.retryCount = (config.metadata.retryCount || 0) + 1
+      
+      if (enableDebug) {
+        console.warn(`🔄 API Retry (${config.metadata.retryCount}/${retryCount}):`, config.url)
+      }
+      
+      // 等待重试延迟
+      await new Promise(resolve => setTimeout(resolve, retryDelay))
+      
+      // 重新发起请求
+      return service(config)
+    }
+    
+    // 记录错误日志
+    if (enableDebug) {
+      console.error('❌ API Error:', error.config?.url)
+      console.error('❌ Error Details:', {
+        status: error.response?.status,
+        message: error.message,
+        retries: config?.metadata?.retryCount || 0,
+        config: {
+          baseURL: error.config?.baseURL,
+          timeout: error.config?.timeout,
+          url: error.config?.url
+        }
+      })
+    } else {
+      console.error('❌ Response Error:', error.message)
+    }
 
     // 处理不同的错误状态
     if (error.response) {

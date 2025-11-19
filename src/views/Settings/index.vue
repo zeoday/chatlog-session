@@ -9,6 +9,13 @@ const router = useRouter()
 
 // 设置选项
 const settings = ref({
+  // API 设定
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  apiTimeout: 30000,
+  apiRetryCount: 3,
+  apiRetryDelay: 1000,
+  enableApiDebug: false,
+
   // 外观设置
   theme: appStore.isDark ? 'dark' : 'light',
   language: 'zh-CN',
@@ -32,8 +39,7 @@ const settings = ref({
 
   // 高级设置
   enableDebug: false,
-  cacheSize: '100MB',
-  apiTimeout: 30000
+  cacheSize: '100MB'
 })
 
 // 版本信息
@@ -41,10 +47,11 @@ const version = ref('1.0.0-dev')
 const buildDate = ref('2025-11-17')
 
 // 当前活动菜单
-const activeMenu = ref('appearance')
+const activeMenu = ref('api')
 
 // 菜单项
 const menuItems = [
+  { key: 'api', label: 'API 设定', icon: 'Link' },
   { key: 'appearance', label: '外观设置', icon: 'Brush' },
   { key: 'notifications', label: '通知设置', icon: 'Bell' },
   { key: 'chat', label: '聊天设置', icon: 'ChatDotRound' },
@@ -73,6 +80,68 @@ const themeOptions = [
   { label: '深色', value: 'dark', icon: 'Moon' },
   { label: '跟随系统', value: 'auto', icon: 'Monitor' }
 ]
+
+// API 超时选项
+const apiTimeoutOptions = [
+  { label: '10 秒', value: 10000 },
+  { label: '30 秒', value: 30000 },
+  { label: '60 秒', value: 60000 },
+  { label: '120 秒', value: 120000 }
+]
+
+// 重试次数选项
+const retryCountOptions = [
+  { label: '不重试', value: 0 },
+  { label: '1 次', value: 1 },
+  { label: '3 次', value: 3 },
+  { label: '5 次', value: 5 }
+]
+
+// 测试 API 连接
+const testingApi = ref(false)
+const testApiConnection = async () => {
+  if (!settings.value.apiBaseUrl) {
+    ElMessage.warning('请先输入 API 地址')
+    return
+  }
+
+  testingApi.value = true
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+    
+    const response = await fetch(`${settings.value.apiBaseUrl}/health`, {
+      method: 'GET',
+      signal: controller.signal
+    })
+    
+    clearTimeout(timeoutId)
+    
+    if (response.ok) {
+      ElMessage.success('API 连接成功')
+    } else {
+      ElMessage.error(`API 连接失败: ${response.statusText}`)
+    }
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      ElMessage.error('API 连接超时')
+    } else {
+      ElMessage.error(`API 连接失败: ${error.message}`)
+    }
+  } finally {
+    testingApi.value = false
+  }
+}
+
+// 重置 API 设置
+const resetApiSettings = () => {
+  settings.value.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+  settings.value.apiTimeout = 30000
+  settings.value.apiRetryCount = 3
+  settings.value.apiRetryDelay = 1000
+  settings.value.enableApiDebug = false
+  ElMessage.success('API 设置已重置')
+}
 
 // 切换主题
 const handleThemeChange = (theme: string) => {
@@ -117,6 +186,11 @@ const resetSettings = async () => {
 
     // 重置为默认值
     settings.value = {
+      apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+      apiTimeout: 30000,
+      apiRetryCount: 3,
+      apiRetryDelay: 1000,
+      enableApiDebug: false,
       theme: 'light',
       language: 'zh-CN',
       fontSize: 'medium',
@@ -131,8 +205,7 @@ const resetSettings = async () => {
       autoDownloadMedia: true,
       compressImages: true,
       enableDebug: false,
-      cacheSize: '100MB',
-      apiTimeout: 30000
+      cacheSize: '100MB'
     }
 
     localStorage.removeItem('chatlog-settings')
@@ -214,6 +287,117 @@ const goBack = () => {
       <!-- 设置内容 -->
       <div class="settings-content">
         <el-scrollbar>
+          <!-- API 设定 -->
+          <div v-show="activeMenu === 'api'" class="setting-section">
+            <div class="section-header">
+              <h3>API 设定</h3>
+              <p>配置 Chatlog API 连接</p>
+            </div>
+
+            <el-form label-position="left" label-width="120px">
+              <el-form-item label="API 地址">
+                <el-input
+                  v-model="settings.apiBaseUrl"
+                  placeholder="http://localhost:8080"
+                  style="width: 400px"
+                >
+                  <template #prepend>
+                    <el-icon><Link /></el-icon>
+                  </template>
+                </el-input>
+              </el-form-item>
+
+              <el-form-item label="连接测试">
+                <el-button
+                  type="primary"
+                  :loading="testingApi"
+                  @click="testApiConnection"
+                >
+                  <el-icon><Connection /></el-icon>
+                  测试连接
+                </el-button>
+                <el-text type="info" size="small" style="margin-left: 12px">
+                  点击测试 API 是否可访问
+                </el-text>
+              </el-form-item>
+
+              <el-divider />
+
+              <el-form-item label="请求超时">
+                <el-select v-model="settings.apiTimeout" style="width: 200px">
+                  <el-option
+                    v-for="option in apiTimeoutOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+                <el-text type="info" size="small" style="margin-left: 12px">
+                  API 请求的超时时间
+                </el-text>
+              </el-form-item>
+
+              <el-form-item label="重试次数">
+                <el-select v-model="settings.apiRetryCount" style="width: 200px">
+                  <el-option
+                    v-for="option in retryCountOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+                <el-text type="info" size="small" style="margin-left: 12px">
+                  请求失败后的重试次数
+                </el-text>
+              </el-form-item>
+
+              <el-form-item label="重试延迟">
+                <el-input-number
+                  v-model="settings.apiRetryDelay"
+                  :min="100"
+                  :max="10000"
+                  :step="100"
+                  style="width: 200px"
+                />
+                <el-text type="info" size="small" style="margin-left: 12px">
+                  毫秒（ms）
+                </el-text>
+              </el-form-item>
+
+              <el-divider />
+
+              <el-form-item label="调试模式">
+                <el-switch v-model="settings.enableApiDebug" />
+                <el-text type="info" size="small" style="margin-left: 12px">
+                  在控制台输出 API 请求详情
+                </el-text>
+              </el-form-item>
+
+              <el-form-item>
+                <el-button type="warning" @click="resetApiSettings">
+                  <el-icon><RefreshRight /></el-icon>
+                  重置 API 设置
+                </el-button>
+              </el-form-item>
+            </el-form>
+
+            <el-alert
+              title="提示"
+              type="info"
+              :closable="false"
+              style="margin-top: 20px"
+            >
+              <template #default>
+                <div style="line-height: 1.8">
+                  <p>• API 地址格式: <code>http://host:port</code> 或 <code>https://domain.com</code></p>
+                  <p>• 默认地址: <code>http://localhost:8080</code></p>
+                  <p>• 修改设置后需要点击"保存设置"按钮才会生效</p>
+                  <p>• 建议先测试连接，确保 API 可访问</p>
+                </div>
+              </template>
+            </el-alert>
+          </div>
+
           <!-- 外观设置 -->
           <div v-show="activeMenu === 'appearance'" class="setting-section">
             <div class="section-header">
