@@ -27,13 +27,41 @@
 
 Chatlog Session 是一个基于 [Chatlog](https://github.com/sjzar/chatlog) API 的现代化前端应用，采用 Vue 3 + TypeScript + Vite 技术栈，为用户提供一个熟悉、流畅的聊天记录查看体验。
 
+### 🔒 100% 隐私保护承诺
+
+```mermaid
+graph LR
+    A[您的数据] -->|仅在| B[您的浏览器]
+    B -->|仅连接| C[您的 API]
+    
+    D[❌ 我们的服务器]
+    E[❌ 第三方追踪]
+    F[❌ 数据上传]
+    
+    A -.->|不经过| D
+    A -.->|不经过| E
+    A -.->|不经过| F
+    
+    style A fill:#c8e6c9,stroke:#4caf50,stroke-width:2px
+    style B fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style C fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style D fill:#ffcdd2,stroke:#f44336,stroke-dasharray: 5 5
+    style E fill:#ffcdd2,stroke:#f44336,stroke-dasharray: 5 5
+    style F fill:#ffcdd2,stroke:#f44336,stroke-dasharray: 5 5
+```
+
+> **这是一个纯前端应用**，所有数据都在您的浏览器本地处理和存储，**不会上传到任何服务器**。  
+> 您的聊天记录、联系人信息等敏感数据完全由您掌控，我们不收集、不存储、不传输任何用户数据。
+
 ### 为什么选择 Chatlog Session？
 
+- 🔐 **隐私优先** - 纯前端应用，数据仅存储在浏览器本地，不上传服务器
 - 🎨 **熟悉的界面** - 仿微信设计，零学习成本
 - ⚡ **极致性能** - 虚拟滚动、IndexedDB 缓存，加载速度提升 20-40 倍
 - 📡 **离线支持** - 支持离线浏览，无需网络也能查看历史记录
 - 🔧 **灵活配置** - 可自定义 API 地址、超时、重试等参数
 - 🎯 **用户友好** - 自动初始化、智能后台加载、实时进度反馈
+- 🚫 **零追踪** - 不记录任何用户行为数据，不使用任何分析工具
 
 ## 🌐 在线演示
 
@@ -65,6 +93,7 @@ Chatlog Session 是一个基于 [Chatlog](https://github.com/sjzar/chatlog) API 
 
 ### 核心功能
 
+- 🔒 **本地隐私保护** - 纯前端应用，数据不上传服务器
 - 💬 **聊天记录浏览** - 完整的聊天历史记录查看
 - 🔍 **智能搜索** - 全局搜索和会话内搜索
 - 👥 **联系人管理** - 好友、群聊、公众号管理
@@ -97,6 +126,45 @@ Chatlog Session 是一个基于 [Chatlog](https://github.com/sjzar/chatlog) API 
 - ✅ 可控制媒体显示（v0.7.0）
 
 ## 🏗️ 技术栈
+
+```mermaid
+graph TB
+    subgraph "前端应用层"
+        A[Vue 3.x]
+        B[TypeScript 5.x]
+        C[Element Plus UI]
+    end
+    
+    subgraph "数据管理层"
+        D[Pinia 状态管理]
+        E[IndexedDB 本地存储]
+        F[API 请求封装]
+    end
+    
+    subgraph "性能优化层"
+        G[Virtual Scroller]
+        H[Vite 构建工具]
+        I[懒加载/代码分割]
+    end
+    
+    subgraph "外部依赖"
+        J[Chatlog API<br/>您自己部署]
+    end
+    
+    A --> D
+    B --> A
+    C --> A
+    D --> E
+    D --> F
+    F --> J
+    G --> A
+    H --> A
+    I --> A
+    
+    style A fill:#e3f2fd,stroke:#2196f3
+    style E fill:#c8e6c9,stroke:#4caf50
+    style J fill:#fff9c4,stroke:#fbc02d
+```
 
 | 类型 | 技术 | 版本 |
 |------|------|------|
@@ -219,6 +287,50 @@ chatlog server --port 8080
 
 ### 项目结构
 
+```mermaid
+graph TB
+    subgraph "src/ - 源代码"
+        A[main.ts 应用入口]
+        
+        subgraph "核心模块"
+            B[api/ - API 封装]
+            C[stores/ - 状态管理]
+            D[utils/ - 工具函数]
+        end
+        
+        subgraph "UI 层"
+            E[views/ - 页面组件]
+            F[components/ - 可复用组件]
+        end
+        
+        G[types/ - 类型定义]
+    end
+    
+    subgraph "docs/ - 文档"
+        H[api/ - API 文档]
+        I[features/ - 功能文档]
+        J[guides/ - 使用指南]
+    end
+    
+    K[public/ - 静态资源]
+    L[package.json - 配置]
+    
+    A --> B
+    A --> C
+    A --> E
+    B --> D
+    C --> D
+    E --> F
+    G -.-> B
+    G -.-> C
+    G -.-> E
+    
+    style A fill:#e3f2fd,stroke:#2196f3
+    style B fill:#fff9c4,stroke:#fbc02d
+    style C fill:#c8e6c9,stroke:#4caf50
+    style E fill:#f3e5f5,stroke:#9c27b0
+```
+
 ```
 chatlog-session/
 ├── src/
@@ -281,6 +393,32 @@ npm run preview
 
 ### 性能指标
 
+```mermaid
+graph LR
+    subgraph "优化前"
+        A1[Contact 加载<br/>1-2秒]
+        A2[1000条渲染<br/>620ms]
+        A3[内存占用<br/>21MB]
+    end
+    
+    subgraph "优化后"
+        B1[Contact 加载<br/>50-100ms]
+        B2[1000条渲染<br/>20ms]
+        B3[内存占用<br/>1.5MB]
+    end
+    
+    A1 -->|20-40倍| B1
+    A2 -->|31倍| B2
+    A3 -->|减少93%| B3
+    
+    style A1 fill:#ffcdd2,stroke:#f44336
+    style A2 fill:#ffcdd2,stroke:#f44336
+    style A3 fill:#ffcdd2,stroke:#f44336
+    style B1 fill:#c8e6c9,stroke:#4caf50
+    style B2 fill:#c8e6c9,stroke:#4caf50
+    style B3 fill:#c8e6c9,stroke:#4caf50
+```
+
 | 功能 | 优化前 | 优化后 | 提升 |
 |------|--------|--------|------|
 | Contact 视图加载 | 1-2秒 | 50-100ms | **20-40倍** |
@@ -293,6 +431,28 @@ npm run preview
 | 关闭媒体后内存 | 150MB | 60MB | **减少60%** |
 
 ### 优化技术
+
+```mermaid
+graph TD
+    A[性能优化策略] --> B[虚拟滚动]
+    A --> C[IndexedDB 缓存]
+    A --> D[后台加载]
+    A --> E[按需加载]
+    A --> F[媒体控制]
+    
+    B --> B1[只渲染可见区域<br/>提升 31-140 倍]
+    C --> C1[离线优先策略<br/>减少 100% 请求]
+    D --> D1[分批非阻塞加载<br/>不阻塞 UI]
+    E --> E1[路由懒加载<br/>减少初始包大小]
+    F --> F1[可选关闭媒体<br/>提升 68% 速度]
+    
+    style A fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style B1 fill:#c8e6c9,stroke:#4caf50
+    style C1 fill:#c8e6c9,stroke:#4caf50
+    style D1 fill:#c8e6c9,stroke:#4caf50
+    style E1 fill:#c8e6c9,stroke:#4caf50
+    style F1 fill:#c8e6c9,stroke:#4caf50
+```
 
 - ✅ 虚拟滚动 - 只渲染可见区域
 - ✅ IndexedDB 缓存 - 离线优先策略
@@ -438,6 +598,90 @@ A: 当 Chatlog 服务无法获取附件解密密钥时，媒体无法正常显�
 - 搜索 [已知问题](https://github.com/xlight/chatlog-session/issues)
 - 提交 [新问题](https://github.com/xlight/chatlog-session/issues/new)
 
+## 🔐 隐私与安全
+
+### 隐私保护承诺
+
+Chatlog Session 是一个**完全在本地运行的纯前端应用**，我们对您的隐私做出以下承诺：
+
+#### ✅ 我们做到的
+
+- **100% 本地处理** - 所有数据处理都在您的浏览器中进行
+- **零数据上传** - 不会向任何服务器上传您的聊天记录、联系人信息或个人数据
+- **本地存储** - 数据仅存储在浏览器的 IndexedDB 中，完全由您控制
+- **无追踪分析** - 不使用 Google Analytics 或任何其他用户行为追踪工具
+- **开源透明** - 所有源代码公开，欢迎审计和验证
+
+#### 🔒 数据流向
+
+```mermaid
+graph LR
+    A[您的浏览器] -->|HTTP 请求| B[Chatlog API<br/>您自己部署]
+    B -->|JSON 响应| A
+    A -->|存储| C[IndexedDB<br/>浏览器本地]
+    
+    D[❌ 我们的服务器] -.->|不经过| A
+    D -.->|不经过| B
+    D -.->|不经过| C
+    
+    style A fill:#e3f2fd,stroke:#2196f3
+    style B fill:#fff9c4,stroke:#fbc02d
+    style C fill:#c8e6c9,stroke:#4caf50
+    style D fill:#ffcdd2,stroke:#f44336,stroke-dasharray: 5 5
+```
+
+**关键点**：数据只在您的设备和您自己部署的 Chatlog API 之间流动，**不经过我们的任何服务器**。
+
+#### 🛡️ 安全建议
+
+1. **使用本地部署** - 推荐将 Chatlog API 部署在本地或私有网络中
+2. **HTTPS 连接** - 生产环境建议使用 HTTPS 加密连接
+3. **定期清理** - 可在浏览器中手动清除 IndexedDB 数据
+4. **访问控制** - 为 Chatlog API 设置访问密码（如支持）
+
+#### 📊 技术实现
+
+```mermaid
+graph TD
+    subgraph "您的浏览器"
+        A[Vue 3 前端应用]
+        B[IndexedDB 本地存储]
+        C[API 请求模块]
+    end
+    
+    subgraph "您的服务器/本地"
+        D[Chatlog API]
+        E[微信数据库]
+    end
+    
+    subgraph "GitHub Pages"
+        F[静态 HTML/JS/CSS<br/>不含服务器代码]
+    end
+    
+    F -.->|下载应用| A
+    A <-->|读写数据| B
+    A -->|HTTP 请求| C
+    C <-->|获取聊天记录| D
+    D -->|读取| E
+    
+    G[❌ 用户数据] -.->|不上传| F
+    
+    style A fill:#e3f2fd,stroke:#2196f3
+    style B fill:#c8e6c9,stroke:#4caf50
+    style D fill:#fff9c4,stroke:#fbc02d
+    style E fill:#ffe0b2,stroke:#ff9800
+    style F fill:#f3e5f5,stroke:#9c27b0
+    style G fill:#ffcdd2,stroke:#f44336,stroke-dasharray: 5 5
+```
+
+**技术保障**：
+- **前端渲染** - 所有 UI 和数据处理在浏览器完成
+- **无后端服务** - 静态文件部署，无服务器端代码
+- **本地缓存** - 使用浏览器 IndexedDB 存储，不依赖远程数据库
+- **开源审计** - 代码公开在 GitHub，可自行审查和验证
+
+---
+
 ## ⚠️ 免责声明
 
 本项目仅供学习、研究和个人合法使用。
@@ -447,13 +691,14 @@ A: 当 Chatlog 服务无法获取附件解密密钥时，媒体无法正常显�
 - ✅ 仅处理您自己合法拥有的聊天数据
 - ✅ 遵守相关法律法规和隐私政策
 - ✅ 尊重他人隐私权
+- ✅ 自行部署 Chatlog API，确保数据安全
 - ❌ 严禁用于未经授权访问他人数据
 - ❌ 禁止用于任何非法目的
 - ❌ 不得用于侵犯他人隐私
 
 ### 责任声明
 
-使用本项目即表示您已阅读、理解并同意遵守上述条款。开发者不对使用本工具可能导致的任何损失、数据泄露或法律纠纷承担责任。
+使用本项目即表示您已阅读、理解并同意遵守上述条款。开发者不对使用本工具可能导致的任何损失、数据泄露或法律纠纷承担责任。虽然我们承诺不收集您的数据，但您需要自行确保 Chatlog API 的安全性和合法性。
 
 ## 📄 许可证
 
